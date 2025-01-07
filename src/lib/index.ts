@@ -2,7 +2,8 @@ import { decode, encode } from 'cborg'
 import { decrypt, encrypt } from 'ethereum-cryptography/aes'
 import { getRandomBytesSync } from 'ethereum-cryptography/random'
 import { useCallback } from 'react'
-import { toBytes, bytesToHex, concat, Address } from 'viem'
+import { toBytes, bytesToHex, concat } from 'viem/utils'
+import type { Address, Hex } from 'viem'
 import { useWalletClient, useReadContract, useWriteContract } from 'wagmi'
 import {
   ReadArgs,
@@ -33,7 +34,7 @@ const processQueryArgs = (props: ReadArgs) => {
   let args: unknown[]
   switch (props.name) {
     case 'listAuth':
-    case 'txDecimals': 
+    case 'txDecimals':
       args = [props.reportId]
       break
 
@@ -107,17 +108,26 @@ export const useWriteData = () => {
         args = [props.decimals]
         break
 
-      case 'removeAuth':
-        args = [props.reportId, props.target]
-        break
+      case 'removeReport':
+      case 'switchTo':
+        args = [props.reportId]
+        break;
 
-      case 'setAuthLevel':
+      case 'addAuthorizer':
         args = [
           props.reportId,
           props.target,
           props.level,
           props.signature,
         ]
+        break
+
+      case 'setAuthLevel':
+        args = [props.reportId, props.target, props.level]
+        break
+
+      case 'docOwnership':
+        args = [props.reportId, props.newOwner, props.signature]
         break
 
       case 'addEditor':
@@ -185,6 +195,30 @@ export const useWriteData = () => {
   return { status, writeData, error }
 }
 
+export const useDocAuths = (reportId: Hex) => {
+  const { data: wallet } = useWalletClient()
+  const { data, error, isSuccess } = useReadContract({
+    abi: contractABI,
+    account: wallet?.account,
+    address: contractAddr,
+    query: {
+      select: (data: any) => ({
+        isOwner: data[0] as boolean,
+        isEditor: data[1] as boolean,
+        isAuthorizer: data[2] as boolean,
+      }),
+    },
+    functionName: 'docAuths',
+    args: [reportId],
+  })
+
+  if (isSuccess) {
+    return { ...data, error }
+  }
+
+  return { isOwner: false, isEditor: false, isAuthorizer: false, error }
+}
+
 const arrayify = (value: BytesLike) => typeof value === 'object' ? new Uint8Array(value) : toBytes(value)
 
 const bulkEncrypt = (secrets: IndexedSecret[], data: unknown) => secrets.map(s => [s.dest, encryptData(s.secret, data)])
@@ -214,6 +248,6 @@ const encryptData = (secret: BytesLike, data: unknown) => {
   return bytesToHex(encode(data))
 }
 
-const contractAddr: Address = '0x65360BA6599c5355ce644A7539a32Cd9Bdf99fe8'
+const contractAddr: Address = import.meta.env.VITE_CONTRACT_ADDRESS || '0x65360BA6599c5355ce644A7539a32Cd9Bdf99fe8'
 
 const contractABI = abi()

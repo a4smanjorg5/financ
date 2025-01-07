@@ -24,6 +24,10 @@ export interface RTargetArgs extends ReportArgs {
   target: Address;
 }
 
+export interface RSTargetArgs extends RTargetArgs {
+  signature: BytesLike;
+}
+
 export interface ReportArgs { reportId: Hex }
 
 export interface TransactArgs extends ReportArgs {
@@ -91,17 +95,24 @@ export interface Transaction extends Omit<BaseTransaction, 'recap'> {
 export type WriteArgs = {
   name: 'addReport';
   decimals: number;
+  docName: string;
 }
-| (RTargetArgs & { name: 'removeAuth' })
+| (ReportArgs & { name: 'removeReport' })
+| (ReportArgs & { name: 'switchTo' })
+| (RSTargetArgs & {
+  name: 'addAuthorizer';
+  level: number;
+})
 | (RTargetArgs & {
   name: 'setAuthLevel';
   level: number;
+})
+| (ReportArgs & {
+  name: 'docOwnership';
+  newOwner: Address;
   signature: BytesLike;
 })
-| (RTargetArgs & {
-  name: 'addEditor';
-  signature: BytesLike
-})
+| (RSTargetArgs & { name: 'addEditor' })
 | (RTargetArgs & { name: 'removeEditor' })
 | (Omit<SecretsTransactArgs, 'transactId'> & BaseTransaction & { name: 'addTransaction' })
 | (TransactArgs & { name: 'approveTransaction' })
